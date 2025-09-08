@@ -1,0 +1,77 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+// Hermes enabled flag
+def hermesEnabled = false // Set true if you want Hermes
+
+// React Native configuration
+react {
+    autolinkLibrariesWithApp()
+}
+
+// Proguard (release)
+def enableProguardInReleaseBuilds = false
+
+// JSC flavor
+def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
+
+android {
+    compileSdk rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    namespace "com.maauserapp"
+
+    defaultConfig {
+        applicationId "com.maauserapp"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a"
+        }
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            signingConfig signingConfigs.debug
+            minifyEnabled enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+    ndkVersion rootProject.ext.ndkVersion
+}
+
+dependencies {
+    // React Native
+    implementation("com.facebook.react:react-android")
+
+    // Google Play Services
+    implementation "com.google.android.gms:play-services-location:21.0.1"
+    implementation "com.google.android.gms:play-services-base:18.2.0"
+    implementation "com.google.android.gms:play-services-tasks:18.0.2"
+
+    // Hermes or JSC
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
+    }
+}
+
+// Vector Icons
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
