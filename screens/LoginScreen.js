@@ -1,17 +1,72 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
+// screens/LoginScreen.js
+import React, { useState, useContext } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import Icon from "react-native-vector-icons/FontAwesome";
+import api, { setAuthToken } from "../services/api"; // ✅ use api instance
+import { AuthContext } from "../context/AuthContext";
 
 export default function LoginScreen({ navigation }) {
-  const [mobile, setMobile] = useState('');
+  const [mobile, setMobile] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const { login } = useContext(AuthContext);
+
+  const handleSendOtp = async () => {
+    if (mobile.length !== 10) {
+      Alert.alert("Invalid Number", "Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.post("/login", {
+        phone_number: mobile,
+      });
+
+      const data = response.data;
+      console.log("Login API response:", data);
+if (data?.access_token) {
+  // ✅ set token globally for all future requests
+  setAuthToken(data.access_token, data.token_type);
+
+  // ✅ save in AuthContext
+  login({
+    token: data.access_token,
+    phone: mobile,
+    user: data.user,
+  });
+
+  Alert.alert("Success", "OTP sent successfully");
+  navigation.navigate("OTP", { mobile });
+
+
+      } else {
+        Alert.alert("Login failed", data?.message || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Login API Error:", error.response?.data || error.message);
+      Alert.alert("Error", "Unable to connect to server");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <Image source={require('../assets/logo12.png')} style={styles.logo} />
-      
+      <Image source={require("../assets/logo12.png")} style={styles.logo} />
 
       <View style={styles.form}>
         <Text style={styles.label}>Login with Mobile</Text>
+
         <TextInput
           style={styles.input}
           placeholder="Enter Your Mobile Number"
@@ -21,8 +76,20 @@ export default function LoginScreen({ navigation }) {
           value={mobile}
           onChangeText={setMobile}
         />
-        <TouchableOpacity style={styles.sendBtn} onPress={() => navigation.navigate('OTP')}>
-          <Text style={styles.sendBtnText}>Send OTP</Text>
+
+        <TouchableOpacity
+          style={[
+            styles.sendBtn,
+            { backgroundColor: mobile.length === 10 ? "#007bff" : "#ccc" },
+          ]}
+          onPress={handleSendOtp}
+          disabled={loading || mobile.length !== 10}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.sendBtnText}>Send OTP</Text>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.orText}>OR</Text>
@@ -39,31 +106,10 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#3f7ffb', // changed color
-  },
-  logo: {
-    width: 250,         // updated size
-    height: 200,
-    alignSelf: 'center',
-    marginTop: 80,
-  },
-  title: {
-    fontSize: 24,
-    color: '#fff',
-    textAlign: 'center',
-    fontWeight: 'bold',
-    marginTop: 12,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
+  container: { flex: 1, backgroundColor: "#3f7ffb" },
+  logo: { width: 250, height: 200, alignSelf: "center", marginTop: 80 },
   form: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     flex: 1,
     marginTop: 30,
     borderTopLeftRadius: 30,
@@ -71,45 +117,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 40,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
+  label: { fontSize: 16, fontWeight: "bold", marginBottom: 10 },
   input: {
     borderBottomWidth: 1,
-    borderBottomColor: '#aaa',
+    borderBottomColor: "#aaa",
     fontSize: 16,
     marginBottom: 20,
     paddingVertical: 5,
   },
-  sendBtn: {
-    backgroundColor: '#007bff',
-    paddingVertical: 12,
-    borderRadius: 25,
-    alignItems: 'center',
-  },
-  sendBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  orText: {
-    textAlign: 'center',
-    marginVertical: 20,
-    color: '#888',
-  },
-  socialText: {
-    textAlign: 'center',
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
+  sendBtn: { paddingVertical: 12, borderRadius: 25, alignItems: "center" },
+  sendBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  orText: { textAlign: "center", marginVertical: 20, color: "#888" },
+  socialText: { textAlign: "center", fontWeight: "bold", marginBottom: 10 },
   socialIcons: {
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
+    flexDirection: "row",
+    justifyContent: "space-evenly",
     marginHorizontal: 60,
   },
-  iconSpacing: {
-    marginHorizontal: 20,
-  },
+  iconSpacing: { marginHorizontal: 20 },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,50 +6,10 @@ import {
   FlatList,
   Image,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
-// --- Mock Data ---
-const reviewsData = [
-  {
-    id: '1',
-    name: 'John Doe',
-    avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
-    timestamp: 'Today at 12:08 am',
-    text: "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
-    tasteRating: 4,
-    portionSizeRating: 3,
-  },
-  {
-    id: '2',
-    name: 'John Doe',
-    avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
-    timestamp: 'Yesterday at 9:30 pm',
-    text: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
-    tasteRating: 5,
-    portionSizeRating: 4,
-  },
-  {
-    id: '3',
-    name: 'John Doe',
-    avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
-    timestamp: 'Yesterday at 7:12 pm',
-    text: "It has survived not only five centuries, but also the leap into electronic typesetting.",
-    tasteRating: 4,
-    portionSizeRating: 4,
-  },
-  {
-    id: '4',
-    name: 'John Doe',
-    avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
-    timestamp: 'Today at 8:20 am',
-    text: "Contrary to popular belief, Lorem Ipsum is not simply random text.",
-    tasteRating: 3,
-    portionSizeRating: 3,
-  },
-];
-
-// --- Components ---
 const StarRating = ({ rating }) => {
   const stars = [...Array(5)].map((_, index) => (
     <MaterialIcons
@@ -65,43 +25,74 @@ const StarRating = ({ rating }) => {
 const ReviewCard = ({ review }) => (
   <View style={styles.reviewCard}>
     <View style={styles.reviewHeader}>
-      <Image source={{ uri: review.avatar }} style={styles.avatar} />
+      <Image
+        source={{
+          uri: review.user_avatar || 'https://i.pravatar.cc/150?u=a042581f4e29026704d',
+        }}
+        style={styles.avatar}
+      />
       <View style={styles.reviewerInfo}>
-        <Text style={styles.reviewerName}>{review.name}</Text>
-        <Text style={styles.reviewTimestamp}>{review.timestamp}</Text>
+        <Text style={styles.reviewerName}>{review.user_name || 'Anonymous'}</Text>
+        <Text style={styles.reviewTimestamp}>
+          {new Date(review.created_at).toLocaleDateString()},{' '}
+          {new Date(review.created_at).toLocaleTimeString()}
+        </Text>
       </View>
     </View>
-    <Text style={styles.reviewText}>{review.text}</Text>
+    <Text style={styles.reviewText}>{review.review_text}</Text>
     <View style={styles.ratingsContainer}>
       <View style={styles.ratingItem}>
-        <StarRating rating={review.tasteRating} />
+        <StarRating rating={review.taste_rating} />
         <Text style={styles.ratingLabel}>Taste</Text>
       </View>
       <View style={styles.ratingItem}>
-        <StarRating rating={review.portionSizeRating} />
+        <StarRating rating={review.portion_rating} />
         <Text style={styles.ratingLabel}>Portion Size</Text>
       </View>
     </View>
   </View>
 );
 
-// --- Main Component ---
-const ReviewsScreen = () => {
+const ReviewsScreen = ({ route }) => {
+  const { chefId } = route.params;
+  const [reviewsData, setReviewsData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const res = await fetch(`http://13.204.84.41/api/chef/${chefId}/reviews`);
+        const data = await res.json();
+        if (res.ok) setReviewsData(data || []);
+      } catch (err) {
+        console.log('Error fetching reviews:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReviews();
+  }, [chefId]);
+
+  if (loading)
+    return <ActivityIndicator size="large" color="#00A99D" style={{ marginTop: 50 }} />;
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Text style={styles.reviewsTitle}>19 Reviews</Text>
+      <Text style={styles.reviewsTitle}>{reviewsData.length} Reviews</Text>
       <FlatList
         data={reviewsData}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         renderItem={({ item }) => <ReviewCard review={item} />}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <Text style={{ textAlign: 'center', marginTop: 20 }}>No reviews yet.</Text>
+        }
       />
     </SafeAreaView>
   );
 };
 
-// --- Styles ---
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,

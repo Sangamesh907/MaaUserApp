@@ -1,32 +1,64 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ActivityIndicator, 
+  Alert 
+} from 'react-native';
+import { useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 export default function OTPScreen({ navigation }) {
+  const route = useRoute();
   const [otp, setOtp] = useState(['', '', '', '']);
+  const [loading, setLoading] = useState(false);
   const inputs = useRef([]);
+  
+  const mobile = route.params?.mobile;
+
+  useEffect(() => {
+    if (!mobile) {
+      console.warn('No mobile number found. Navigating back to Login.');
+      navigation.replace('LoginScreen'); 
+    }
+  }, [mobile, navigation]);
 
   const handleOtpChange = (text, index) => {
     const newOtp = [...otp];
     newOtp[index] = text;
     setOtp(newOtp);
 
-    // Move to next input if a digit is entered
     if (text && index < 3) {
       inputs.current[index + 1].focus();
     }
   };
 
-  const handleVerify = () => {
+  const handleVerifyOTP = () => {
     const finalOtp = otp.join('');
     if (finalOtp.length !== 4) {
       Alert.alert('Invalid OTP', 'Please enter all 4 digits of the OTP.');
       return;
     }
 
-    // Simulate OTP verification success
-    navigation.replace('Main'); // Navigate to bottom tab screen
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      console.log(`✅ OTP "${finalOtp}" entered for mobile ${mobile}`);
+      navigation.replace('Main'); // Navigate to Home / BottomTabs
+    }, 1000);
   };
+
+  if (!mobile) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#fff" />
+        <Text style={{ color: '#fff', marginTop: 20 }}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -35,7 +67,7 @@ export default function OTPScreen({ navigation }) {
       </TouchableOpacity>
 
       <Text style={styles.heading}>Verify Mobile</Text>
-      <Text style={styles.subtext}>An OTP has been sent to the entered mobile number</Text>
+      <Text style={styles.subtext}>An OTP has been sent to {mobile}</Text>
 
       <View style={styles.otpContainer}>
         {otp.map((digit, index) => (
@@ -55,8 +87,12 @@ export default function OTPScreen({ navigation }) {
         <Text style={styles.resendText}>Resend OTP</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.verifyBtn} onPress={handleVerify}>
-        <Text style={styles.verifyText}>Verify</Text>
+      <TouchableOpacity style={styles.verifyBtn} onPress={handleVerifyOTP} disabled={loading}>
+        {loading ? (
+          <ActivityIndicator size="small" color="#007bff" />
+        ) : (
+          <Text style={styles.verifyText}>Verify</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -80,6 +116,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     textAlign: 'center',
     fontSize: 20,
+    fontWeight: 'bold',
   },
   resendBtn: { marginTop: 20 },
   resendText: { textAlign: 'center', color: '#fff', textDecorationLine: 'underline' },
