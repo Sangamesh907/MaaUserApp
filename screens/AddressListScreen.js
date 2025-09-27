@@ -1,0 +1,108 @@
+import React, { useContext, useEffect, useState } from "react";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, Pressable } from "react-native";
+import MaterialCommunityIcon from "react-native-vector-icons/MaterialCommunityIcons";
+import Icon from "react-native-vector-icons/Ionicons";
+import { AddressContext } from "../context/AddressContext";
+
+const getAddressIcon = (label) => {
+  const lower = label?.toLowerCase() || "";
+  if (lower.includes("home")) return "home-outline";
+  if (lower.includes("work")) return "briefcase-outline";
+  return "map-marker-outline";
+};
+
+const AddressListScreen = ({ navigation }) => {
+  const { addresses, fetchAddresses, selectAddress, deleteAddress, selectedAddress, isLoading } = useContext(AddressContext);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [currentItem, setCurrentItem] = useState(null);
+
+  useEffect(() => { fetchAddresses(); }, []);
+
+  const handleSelect = (item) => {
+    selectAddress(item);
+    setMenuVisible(false);
+    navigation.goBack();
+  };
+
+  const handleDelete = (item) => {
+    Alert.alert(
+      "Delete Address",
+      "Are you sure you want to delete this address?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteAddress(item.id);
+            fetchAddresses();
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+    setMenuVisible(false);
+  };
+
+  const renderItem = ({ item }) => (
+    <View style={[styles.card, selectedAddress?.id === item.id && styles.selectedCard]}>
+      <View style={styles.row}>
+        <MaterialCommunityIcon name={getAddressIcon(item.label)} size={24} color="#333" />
+        <Text style={styles.label}>{item.label}</Text>
+        <TouchableOpacity style={styles.menuBtn} onPress={() => { setCurrentItem(item); setMenuVisible(true); }}>
+          <Icon name="ellipsis-vertical" size={22} color="#333" />
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.addressText}>{item.flat_no}, {item.landmark}, {item.area}</Text>
+    </View>
+  );
+
+  if (isLoading) return <ActivityIndicator style={{ flex: 1 }} size="large" color="#007BFF" />;
+
+  return (
+    <View style={styles.container}>
+      {addresses.length === 0 ? (
+        <Text style={styles.empty}>No addresses found. Add one!</Text>
+      ) : (
+        <FlatList data={addresses} keyExtractor={(item) => item.id} renderItem={renderItem} />
+      )}
+
+      <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate("AddAddress")}>
+        <Text style={styles.addBtnText}>Add New Address</Text>
+      </TouchableOpacity>
+
+      {/* Three-dot menu modal */}
+      <Modal transparent visible={menuVisible} animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setMenuVisible(false)}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.modalOption} onPress={() => handleSelect(currentItem)}>
+              <Text style={styles.modalText}>Select</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalOption} onPress={() => handleDelete(currentItem)}>
+              <Text style={[styles.modalText, { color: "#e74c3c" }]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+};
+
+export default AddressListScreen;
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
+  row: { flexDirection: "row", alignItems: "center", marginBottom: 8, justifyContent: "space-between" },
+  card: { padding: 16, borderWidth: 1, borderColor: "#eee", borderRadius: 10, marginBottom: 12 },
+  selectedCard: { borderColor: "#007BFF", backgroundColor: "#e6f0ff" },
+  label: { fontWeight: "bold", marginLeft: 10, fontSize: 16, flex: 1 },
+  addressText: { fontSize: 14, color: "#333", marginLeft: 34 },
+  empty: { textAlign: "center", marginTop: 50, color: "#888" },
+  addBtn: { backgroundColor: "#007BFF", padding: 16, borderRadius: 12, alignItems: "center", marginTop: 20 },
+  addBtnText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  menuBtn: { paddingHorizontal: 10 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.3)", justifyContent: "center", alignItems: "center" },
+  modalContent: { backgroundColor: "#fff", borderRadius: 12, width: 200, paddingVertical: 10 },
+  modalOption: { paddingVertical: 12, paddingHorizontal: 20 },
+  modalText: { fontSize: 16, fontWeight: "600" },
+});

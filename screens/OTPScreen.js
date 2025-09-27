@@ -1,18 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  ActivityIndicator, 
-  Alert 
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert 
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { AuthContext } from '../context/AuthContext';
 
 export default function OTPScreen({ navigation }) {
   const route = useRoute();
+  const { login } = useContext(AuthContext);
+
   const [otp, setOtp] = useState(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const inputs = useRef([]);
@@ -22,7 +19,7 @@ export default function OTPScreen({ navigation }) {
   useEffect(() => {
     if (!mobile) {
       console.warn('No mobile number found. Navigating back to Login.');
-      navigation.replace('LoginScreen'); 
+      navigation.replace('Login'); 
     }
   }, [mobile, navigation]);
 
@@ -31,23 +28,30 @@ export default function OTPScreen({ navigation }) {
     newOtp[index] = text;
     setOtp(newOtp);
 
-    if (text && index < 3) {
-      inputs.current[index + 1].focus();
-    }
+    if (text && index < 3) inputs.current[index + 1].focus();
   };
 
   const handleVerifyOTP = () => {
     const finalOtp = otp.join('');
     if (finalOtp.length !== 4) {
-      Alert.alert('Invalid OTP', 'Please enter all 4 digits of the OTP.');
+      Alert.alert('Invalid OTP', 'Please enter all 4 digits.');
       return;
     }
 
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      console.log(`✅ OTP "${finalOtp}" entered for mobile ${mobile}`);
-      navigation.replace('Main'); // Navigate to Home / BottomTabs
+
+      // ✅ Fake OTP login: Save token in context
+      login({
+        token: 'fake-token-123',       // fake token
+        tokenType: 'Bearer',
+        phone: mobile,
+        user: { name: 'Demo User' },   // fake user
+      });
+
+      Alert.alert('Success', 'Logged in successfully!');
+      navigation.replace('Main'); // Navigate to home
     }, 1000);
   };
 
@@ -67,7 +71,7 @@ export default function OTPScreen({ navigation }) {
       </TouchableOpacity>
 
       <Text style={styles.heading}>Verify Mobile</Text>
-      <Text style={styles.subtext}>An OTP has been sent to {mobile}</Text>
+      <Text style={styles.subtext}>Enter OTP sent to {mobile}</Text>
 
       <View style={styles.otpContainer}>
         {otp.map((digit, index) => (
@@ -83,7 +87,7 @@ export default function OTPScreen({ navigation }) {
         ))}
       </View>
 
-      <TouchableOpacity style={styles.resendBtn}>
+      <TouchableOpacity style={styles.resendBtn} onPress={() => Alert.alert('OTP Resent!')}>
         <Text style={styles.resendText}>Resend OTP</Text>
       </TouchableOpacity>
 
@@ -103,29 +107,10 @@ const styles = StyleSheet.create({
   backBtn: { position: 'absolute', top: 40, left: 20 },
   heading: { fontSize: 24, color: '#fff', textAlign: 'center', fontWeight: 'bold' },
   subtext: { fontSize: 14, color: '#fff', textAlign: 'center', marginTop: 10 },
-  otpContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 40,
-    marginHorizontal: 20,
-  },
-  otpBox: {
-    backgroundColor: '#fff',
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
+  otpContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 40, marginHorizontal: 20 },
+  otpBox: { backgroundColor: '#fff', width: 50, height: 50, borderRadius: 8, textAlign: 'center', fontSize: 20, fontWeight: 'bold' },
   resendBtn: { marginTop: 20 },
   resendText: { textAlign: 'center', color: '#fff', textDecorationLine: 'underline' },
-  verifyBtn: {
-    marginTop: 30,
-    backgroundColor: '#fff',
-    paddingVertical: 12,
-    borderRadius: 25,
-    alignItems: 'center',
-  },
+  verifyBtn: { marginTop: 30, backgroundColor: '#fff', paddingVertical: 12, borderRadius: 25, alignItems: 'center' },
   verifyText: { color: '#007bff', fontWeight: 'bold', fontSize: 16 },
 });

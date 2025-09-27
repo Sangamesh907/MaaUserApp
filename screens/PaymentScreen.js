@@ -1,4 +1,5 @@
-import React, { useState, useContext } from 'react';
+// PaymentScreen.js
+import React, { useState, useContext, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,10 +8,13 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { AddressContext } from '../context/AddressContext';
+import { CartContext } from '../context/CartContext';
 
 const PAYMENT_OPTIONS = {
   CARD_1: 'CARD_1',
@@ -25,17 +29,10 @@ const PAYMENT_OPTIONS = {
   AMAZON_PAY: 'AMAZON_PAY',
   PHONEPE: 'PHONEPE',
   PAYTM: 'PAYTM',
+  COD: 'COD',
 };
 
-const PaymentOptionRow = ({
-  iconName,
-  iconColor,
-  label,
-  value,
-  selectedValue,
-  onSelect,
-  isLast = false,
-}) => (
+const PaymentOptionRow = ({ iconName, iconColor, label, value, selectedValue, onSelect, isLast = false }) => (
   <TouchableOpacity onPress={() => onSelect(value)} activeOpacity={0.7}>
     <View style={styles.optionRow}>
       <Icon name={iconName} size={26} color={iconColor || '#555'} style={styles.icon} />
@@ -50,8 +47,72 @@ const PaymentOptionRow = ({
 
 const PaymentScreen = () => {
   const [selectedOption, setSelectedOption] = useState(PAYMENT_OPTIONS.CARD_1);
+  const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
-  const { selectedAddress } = useContext(AddressContext);
+
+  const { selectedAddress, addresses, selectAddress } = useContext(AddressContext);
+  const { createOrder } = useContext(CartContext);
+
+  // Auto-select default address
+  useEffect(() => {
+    if (!selectedAddress && addresses.length > 0) {
+      const defaultAddr = addresses.find((a) => a.is_default) || addresses[0];
+      if (defaultAddr) selectAddress(defaultAddr);
+    }
+  }, [addresses, selectedAddress]);
+
+  const mapPaymentMethod = (option) => {
+    switch (option) {
+      case PAYMENT_OPTIONS.CARD_1:
+      case PAYMENT_OPTIONS.CARD_2:
+      case PAYMENT_OPTIONS.CARD_3:
+        return 'CARD';
+      case PAYMENT_OPTIONS.NET_ICICI:
+      case PAYMENT_OPTIONS.NET_HDFC:
+      case PAYMENT_OPTIONS.NET_SBI:
+      case PAYMENT_OPTIONS.NET_AXIS:
+        return 'NETBANKING';
+      case PAYMENT_OPTIONS.RAZORPAY:
+      case PAYMENT_OPTIONS.GOOGLE_PAY:
+      case PAYMENT_OPTIONS.AMAZON_PAY:
+      case PAYMENT_OPTIONS.PHONEPE:
+      case PAYMENT_OPTIONS.PAYTM:
+        return option;
+      case PAYMENT_OPTIONS.COD:
+        return 'COD';
+      default:
+        return 'UNKNOWN';
+    }
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!selectedAddress) {
+      Alert.alert('Please select a delivery address first');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // simulate payment processing
+      await new Promise((res) => setTimeout(res, 700));
+
+      const payment_method = mapPaymentMethod(selectedOption);
+      const order = await createOrder(selectedAddress.id, payment_method);
+
+      if (order) {
+        Alert.alert('Success', 'Order placed successfully!');
+        navigation.replace('OrderConfirmation', { order });
+      } else {
+        Alert.alert('Payment Failed', 'Unable to place order. Please try again.');
+      }
+    } catch (err) {
+      console.log('Place order error:', err);
+      Alert.alert('Error', 'Failed to place order. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -70,25 +131,26 @@ const PaymentScreen = () => {
         {/* Selected Delivery Address */}
         <TouchableOpacity
           style={styles.addressCard}
-          onPress={() => navigation.navigate('Address')}
+          onPress={() => navigation.navigate('AddAddress')}
+          activeOpacity={0.8}
         >
           <View>
             <Text style={styles.addressLabel}>Delivery Address</Text>
             <Text style={styles.addressText}>
-              {selectedAddress ? `${selectedAddress.label}: ${selectedAddress.address}` : 'Select an address'}
+              {selectedAddress
+                ? `${selectedAddress.label}: ${selectedAddress.flat_no || ''}, ${selectedAddress.landmark || ''}, ${selectedAddress.area || ''}`
+                : 'Select an address'}
             </Text>
           </View>
           <Icon name="chevron-forward-outline" size={24} color="#555" />
         </TouchableOpacity>
 
-        {/* Credit & Debit Cards */}
+        {/* Payment Sections */}
+        {/* Cards */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Credit and Debit Cards</Text>
-            <TouchableOpacity
-              style={styles.addNewCardButton}
-              onPress={() => navigation.navigate('AddCard')}
-            >
+            <Text style={styles.sectionTitle}>Credit & Debit Cards</Text>
+            <TouchableOpacity style={styles.addNewCardButton} onPress={() => navigation.navigate('AddCard')}>
               <Text style={styles.addNewCardText}>+ Add New Card</Text>
             </TouchableOpacity>
           </View>
@@ -194,6 +256,16 @@ const PaymentScreen = () => {
               onSelect={setSelectedOption}
               isLast
             />
+            {/* COD */}
+            <View style={{ height: 1, backgroundColor: '#F0F0F0' }} />
+            <PaymentOptionRow
+              iconName="cash-outline"
+              label="Cash on Delivery (COD)"
+              value={PAYMENT_OPTIONS.COD}
+              selectedValue={selectedOption}
+              onSelect={setSelectedOption}
+              isLast
+            />
           </View>
         </View>
       </ScrollView>
@@ -201,17 +273,19 @@ const PaymentScreen = () => {
       {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.payButton}
+          style={[styles.payButton, (loading || !selectedAddress) && { opacity: 0.7 }]}
           activeOpacity={0.8}
-          onPress={() => {
-            if (!selectedAddress) {
-              alert('Please select a delivery address first');
-              return;
-            }
-            navigation.navigate('OrderConfirmation');
-          }}
+          onPress={handlePlaceOrder}
+          disabled={loading || !selectedAddress}
         >
-          <Text style={styles.payButtonText}>Pay</Text>
+          {loading ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#fff" style={{ marginRight: 10 }} />
+              <Text style={styles.payButtonText}>Processing...</Text>
+            </View>
+          ) : (
+            <Text style={styles.payButtonText}>Pay</Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -231,7 +305,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#000' },
-  scrollViewContent: { padding: 16, paddingBottom: 100 },
+  scrollViewContent: { padding: 16, paddingBottom: 120 },
   section: { marginBottom: 24 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },

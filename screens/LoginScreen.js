@@ -1,5 +1,4 @@
-// screens/LoginScreen.js
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,14 +10,21 @@ import {
   ActivityIndicator,
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
-import api, { setAuthToken } from "../services/api"; // ✅ use api instance
+import api, { setAuthToken } from "../services/api";
 import { AuthContext } from "../context/AuthContext";
 
 export default function LoginScreen({ navigation }) {
   const [mobile, setMobile] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { login } = useContext(AuthContext);
+  const { login, authData, loading: authLoading } = useContext(AuthContext);
+
+  // ✅ Redirect to Main screen if already logged in
+  useEffect(() => {
+    if (!authLoading && authData?.token) {
+      navigation.replace("Main"); // replace prevents back to login
+    }
+  }, [authData, authLoading]);
 
   const handleSendOtp = async () => {
     if (mobile.length !== 10) {
@@ -34,21 +40,19 @@ export default function LoginScreen({ navigation }) {
 
       const data = response.data;
       console.log("Login API response:", data);
-if (data?.access_token) {
-  // ✅ set token globally for all future requests
-  setAuthToken(data.access_token, data.token_type);
 
-  // ✅ save in AuthContext
-  login({
-    token: data.access_token,
-    phone: mobile,
-    user: data.user,
-  });
+      if (data?.access_token) {
+        setAuthToken(data.access_token, data.token_type);
 
-  Alert.alert("Success", "OTP sent successfully");
-  navigation.navigate("OTP", { mobile });
+        login({
+          token: data.access_token,
+          tokenType: data.token_type,
+          phone: mobile,
+          user: data.user,
+        });
 
-
+        Alert.alert("Success", "OTP sent successfully");
+        navigation.navigate("OTP", { mobile });
       } else {
         Alert.alert("Login failed", data?.message || "Unknown error");
       }
@@ -59,6 +63,11 @@ if (data?.access_token) {
       setLoading(false);
     }
   };
+
+  // ✅ Show spinner while AuthProvider is restoring token
+  if (authLoading) {
+    return <ActivityIndicator size="large" style={{ flex: 1 }} />;
+  }
 
   return (
     <View style={styles.container}>

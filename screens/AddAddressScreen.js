@@ -1,3 +1,4 @@
+// screens/AddAddressScreen.js
 import React, { useState, useContext } from "react";
 import {
   View,
@@ -6,21 +7,25 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
-  PermissionsAndroid,
-  Platform,
+  TextInput,
   ActivityIndicator,
+  Platform,
+  PermissionsAndroid,
+  KeyboardAvoidingView,
 } from "react-native";
 import Geolocation from "react-native-geolocation-service";
-import axios from "axios";
 import { AddressContext } from "../context/AddressContext";
-import { AuthContext } from "../context/AuthContext";
 
 const AddAddressScreen = ({ navigation }) => {
-  const { addAddress } = useContext(AddressContext); // ✅ use your existing context
-  const { authData } = useContext(AuthContext);
-  const [currentCoords, setCurrentCoords] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const { addAddress, isLoading } = useContext(AddressContext);
 
+  const [coords, setCoords] = useState(null);
+  const [label, setLabel] = useState("");
+  const [flatNo, setFlatNo] = useState("");
+  const [landmark, setLandmark] = useState("");
+  const [area, setArea] = useState("");
+
+  // Request location permission for Android
   const requestLocationPermission = async () => {
     if (Platform.OS === "android") {
       const granted = await PermissionsAndroid.request(
@@ -31,106 +36,118 @@ const AddAddressScreen = ({ navigation }) => {
     return true;
   };
 
+  // Get current location
   const getCurrentLocation = async () => {
     const hasPermission = await requestLocationPermission();
     if (!hasPermission) {
-      Alert.alert("Permission Denied", "Location permission is required.");
+      Alert.alert("Permission denied", "Cannot fetch location without permission");
       return;
     }
 
     Geolocation.getCurrentPosition(
       (position) => {
-        setCurrentCoords({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
+        setCoords({
+          latitude: Number(position.coords.latitude),
+          longitude: Number(position.coords.longitude),
         });
       },
-      (error) => Alert.alert("Error", "Unable to fetch location"),
+      (err) => {
+        Alert.alert("Error", "Unable to fetch location");
+        console.log("Location error:", err);
+      },
       { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 }
     );
   };
 
-  const handleSaveAddress = async () => {
-    if (!currentCoords) {
-      Alert.alert("Error", "Please fetch your location first.");
+  // Handle save address
+  const handleSave = async () => {
+    if (!coords || !label || !flatNo || !landmark || !area) {
+      Alert.alert("Error", "Please fill all fields and fetch location");
       return;
     }
 
-    setIsLoading(true);
+    const newAddress = {
+      id: Date.now().toString(),
+      label,
+      flat_no: flatNo,
+      landmark,
+      area,
+      coordinates: [coords.longitude, coords.latitude],
+      is_default: true,
+    };
+
     try {
-      const response = await axios.post(
-        "http://13.204.84.41/api/userlocation/update",
-        {
-          latitude: currentCoords.latitude,
-          longitude: currentCoords.longitude,
-        },
-        { headers: { Authorization: `Bearer ${authData.token}`, "Content-Type": "application/json" } }
-      );
-
-      if (response.data.status === "success") {
-        // Save to your existing AddressContext
-        addAddress({
-          latitude: currentCoords.latitude,
-          longitude: currentCoords.longitude,
-          label: "Current Location",
-        });
-
-        Alert.alert("Success", "Location saved successfully!");
-        navigation.goBack();
-      } else {
-        Alert.alert("Error", "Failed to save location. Try again.");
-      }
-    } catch (error) {
-      console.log(error.response?.data || error.message);
-      Alert.alert("Error", "Network error. Try again.");
-    } finally {
-      setIsLoading(false);
+      await addAddress(newAddress);
+      Alert.alert("Success", "Address added and selected for delivery!");
+      navigation.goBack(); // Go back to CartItemsScreen directly
+    } catch (err) {
+      console.log("Error saving address:", err);
+      Alert.alert("Error", "Failed to save address. Please try again.");
     }
   };
 
+  const isFormValid = label && flatNo && landmark && area && coords;
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Update Location</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: "#fff" }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <Text style={styles.title}>Add New Address</Text>
 
-      <View style={styles.card}>
-        {currentCoords ? (
-          <>
-            <Text style={styles.coordText}>Latitude: {currentCoords.latitude.toFixed(6)}</Text>
-            <Text style={styles.coordText}>Longitude: {currentCoords.longitude.toFixed(6)}</Text>
-          </>
-        ) : (
-          <Text style={styles.coordText}>📍 Location not fetched yet</Text>
-        )}
-      </View>
+        <TextInput
+          style={[styles.input, { color: "#000" }]}
+          placeholder="Label (Home / Work)"
+          placeholderTextColor="#888"
+          value={label}
+          onChangeText={setLabel}
+        />
+        <TextInput
+          style={[styles.input, { color: "#000" }]}
+          placeholder="Flat No"
+          placeholderTextColor="#888"
+          value={flatNo}
+          onChangeText={setFlatNo}
+        />
+        <TextInput
+          style={[styles.input, { color: "#000" }]}
+          placeholder="Landmark"
+          placeholderTextColor="#888"
+          value={landmark}
+          onChangeText={setLandmark}
+        />
+        <TextInput
+          style={[styles.input, { color: "#000" }]}
+          placeholder="Area"
+          placeholderTextColor="#888"
+          value={area}
+          onChangeText={setArea}
+        />
 
-      <TouchableOpacity style={[styles.button, styles.locateBtn]} onPress={getCurrentLocation} disabled={isLoading}>
-        <Text style={styles.buttonText}>📍 Use Current Location</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={getCurrentLocation}>
+          <Text style={styles.buttonText}>📍 Use Current Location</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.button, styles.saveBtn]} onPress={handleSaveAddress} disabled={isLoading}>
-        {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>💾 Save Location</Text>}
-      </TouchableOpacity>
-    </ScrollView>
+        <TouchableOpacity
+          style={[styles.button, styles.saveBtn, { opacity: isFormValid ? 1 : 0.6 }]}
+          onPress={handleSave}
+          disabled={!isFormValid || isLoading}
+        >
+          {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>💾 Save Address</Text>}
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 export default AddAddressScreen;
+
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, backgroundColor: "#fff" },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20, color: "#222" },
-  card: {
-    backgroundColor: "#f9f9f9",
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    elevation: 2,
-  },
-  coordText: { fontSize: 16, color: "#333", marginBottom: 6 },
-  bold: { fontWeight: "bold", color: "#000" },
-  button: { padding: 16, borderRadius: 10, alignItems: "center", marginBottom: 15 },
-  locateBtn: { backgroundColor: "#007BFF" },
+  container: { flexGrow: 1, padding: 20 },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
+  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 10, padding: 12, marginBottom: 15 },
+  button: { padding: 16, borderRadius: 10, alignItems: "center", backgroundColor: "#007BFF", marginBottom: 15 },
   saveBtn: { backgroundColor: "#28A745" },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  buttonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
 });

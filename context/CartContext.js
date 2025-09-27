@@ -3,7 +3,7 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthContext } from "./AuthContext";
-import api, { BASE_URL } from "../services/api"; // ✅ use axios instance
+import api from "../services/api"; // ✅ axios instance with interceptor
 
 export const CartContext = createContext();
 
@@ -37,9 +37,7 @@ export const CartProvider = ({ children }) => {
   const fetchCartFromServer = async () => {
     if (!token) return;
     try {
-      const res = await api.get("/cart/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get("/cart/me");
       if (res.data.status === "success") {
         const items = res.data.cart?.items || [];
         setCartItems(items);
@@ -50,20 +48,17 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  // 🔹 Add item to cart (backend + local)
+  // 🔹 Add item to cart
   const addItem = async (item) => {
     try {
-      await api.post(
-        "/cart/add",
-        { food_id: item.food_id, quantity: 1 },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post("/cart/add", { food_id: item.food_id, quantity: 1 });
 
-      // Update local
       const existingItem = cartItems.find((i) => i.food_id === item.food_id);
       const updatedCart = existingItem
         ? cartItems.map((i) =>
-            i.food_id === item.food_id ? { ...i, quantity: i.quantity + 1 } : i
+            i.food_id === item.food_id
+              ? { ...i, quantity: i.quantity + 1 }
+              : i
           )
         : [...cartItems, { ...item, quantity: 1 }];
 
@@ -74,20 +69,14 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  // 🔹 Remove item from cart (backend + local)
+  // 🔹 Remove item from cart
   const removeItem = async (item) => {
     try {
-      await api.post(
-        "/cart/remove",
-        { food_id: item.food_id, quantity: 1 },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post("/cart/remove", { food_id: item.food_id, quantity: 1 });
 
       const updatedCart = cartItems
         .map((i) =>
-          i.food_id === item.food_id
-            ? { ...i, quantity: i.quantity - 1 }
-            : i
+          i.food_id === item.food_id ? { ...i, quantity: i.quantity - 1 } : i
         )
         .filter((i) => i.quantity > 0);
 
@@ -98,19 +87,16 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  // 🔹 Increase quantity (calls addItem → backend sync)
   const increaseItem = (food_id) => {
     const item = cartItems.find((i) => i.food_id === food_id);
     if (item) addItem(item);
   };
 
-  // 🔹 Decrease quantity (calls removeItem → backend sync)
   const decreaseItem = (food_id) => {
     const item = cartItems.find((i) => i.food_id === food_id);
     if (item) removeItem(item);
   };
 
-  // 🔹 Update item name locally
   const updateItemName = (food_id, newName) => {
     const updatedCart = cartItems.map((i) =>
       i.food_id === food_id ? { ...i, food_name: newName } : i
@@ -118,11 +104,39 @@ export const CartProvider = ({ children }) => {
     saveCart(updatedCart);
   };
 
-  // 🔹 Clear cart
   const clearCart = async () => {
     setCartItems([]);
     await AsyncStorage.removeItem("cart");
   };
+
+  // 🔹 Create Order API
+  // 🔹 Create Order API
+const createOrder = async (address_id, payment_method = "COD") => {
+  try {
+    const payload = {
+      address_id,
+      payment_method,
+      items: cartItems.map((item) => ({
+        food_id: item.food_id,
+        quantity: item.quantity,
+      })),
+    };
+
+    const res = await api.post("/orders/create", payload);
+
+    if (res.data.status === "success") {
+      await clearCart();
+      return res.data.order; // return order details to PaymentScreen
+    } else {
+      Alert.alert("Error", res.data.message || "Failed to place order.");
+      return null;
+    }
+  } catch (err) {
+    console.log("Order create error:", err.response?.data || err.message);
+    Alert.alert("Error", "Failed to place order.");
+    return null;
+  }
+};
 
   useEffect(() => {
     loadCart();
@@ -140,6 +154,7 @@ export const CartProvider = ({ children }) => {
         updateItemName,
         clearCart,
         fetchCartFromServer,
+        createOrder, // ✅ expose here
       }}
     >
       {children}

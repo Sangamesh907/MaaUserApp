@@ -30,13 +30,13 @@ import OrderDetailScreen from './screens/OrderDetailScreen';
 import OrderTrackingScreen from './screens/OrderTrackingScreen';
 import OffersScreen from './screens/OffersScreen';
 import AddAddressScreen from './screens/AddAddressScreen';
-
+import AddressListScreen from './screens/AddressListScreen'; // ✅ Import AddressListScreen
 
 // Context
 import { CartProvider } from './context/CartContext';
 import { LocationProvider } from './context/LocationContext';
 import { AuthProvider } from "./context/AuthContext";
-import { AddressProvider } from "./context/AddressContext";   // ✅ Import AddressProvider
+import { AddressProvider } from "./context/AddressContext";
 
 const Stack = createNativeStackNavigator();
 
@@ -45,36 +45,38 @@ export default function App() {
     <AuthProvider>
       <CartProvider>
         <LocationProvider>
-          <AddressProvider>   {/* ✅ Wrap AddressProvider here */}
+          <AddressProvider>
             <NavigationContainer>
-              <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="Splash" component={SplashScreen} />
-                <Stack.Screen name="Login" component={LoginScreen} />
-                <Stack.Screen name="OTP" component={OTPScreen} />
-                <Stack.Screen name="Main" component={MainTabs} />
-                <Stack.Screen name="ExploreFoodStyles" component={ExploreFoodStylesScreen} />
-                <Stack.Screen name="ExploreChefs" component={ExploreChefsScreen} />
-                <Stack.Screen name="ExploreCuisines" component={ExploreCuisinesScreen} />
-                <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-                <Stack.Screen name="ChefOffers" component={ChefOffersScreen} />
-                <Stack.Screen name="Payment" component={PaymentScreen} />
-                <Stack.Screen name="AddCard" component={AddCardScreen} />
-                <Stack.Screen name="Food" component={FoodScreen} />
-                <Stack.Screen name="RestaurantLunch" component={RestaurantScreenLunch} />
-                <Stack.Screen name="FAQ" component={FaqScreen} />
-                <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
-                <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-                <Stack.Screen name="CustomerSupport" component={CustomerSupportScreen} />
-                <Stack.Screen name="ChefProfile" component={ChefProfileScreen} />
-                <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
-                <Stack.Screen name="OrderDelivered" component={OrderDeliveredScreen}/>
-                <Stack.Screen name="Reviews" component={ReviewsScreen} />
-                <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
-                <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
-                <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
-                <Stack.Screen name="Offers" component={OffersScreen} />
-                <Stack.Screen name="AddAddress" component={AddAddressScreen} />
-              </Stack.Navigator>
+             <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+  <Stack.Screen name="Splash" component={SplashScreen} />
+  <Stack.Screen name="Login" component={LoginScreen} />
+  <Stack.Screen name="OTP" component={OTPScreen} />
+  <Stack.Screen name="Main" component={MainTabs} />
+  <Stack.Screen name="ExploreFoodStyles" component={ExploreFoodStylesScreen} />
+  <Stack.Screen name="ExploreChefs" component={ExploreChefsScreen} />
+  <Stack.Screen name="ExploreCuisines" component={ExploreCuisinesScreen} />
+  <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+  <Stack.Screen name="ChefOffers" component={ChefOffersScreen} />
+  <Stack.Screen name="Payment" component={PaymentScreen} />
+  <Stack.Screen name="AddCard" component={AddCardScreen} />
+  <Stack.Screen name="Food" component={FoodScreen} />
+  <Stack.Screen name="RestaurantLunch" component={RestaurantScreenLunch} />
+  <Stack.Screen name="FAQ" component={FaqScreen} />
+  <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
+  <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+  <Stack.Screen name="CustomerSupport" component={CustomerSupportScreen} />
+  <Stack.Screen name="ChefProfile" component={ChefProfileScreen} />
+  <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
+  <Stack.Screen name="OrderDelivered" component={OrderDeliveredScreen}/>
+  <Stack.Screen name="Reviews" component={ReviewsScreen} />
+  <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+  <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+  <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
+  <Stack.Screen name="Offers" component={OffersScreen} />
+  <Stack.Screen name="AddAddress" component={AddAddressScreen} />
+  <Stack.Screen name="AddressList" component={AddressListScreen} />
+</Stack.Navigator>
+
             </NavigationContainer>
           </AddressProvider>
         </LocationProvider>

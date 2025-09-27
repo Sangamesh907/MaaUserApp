@@ -1,22 +1,21 @@
 import axios from "axios";
 
-// Keep this as your API base URL
 const api = axios.create({
   baseURL: "http://3.110.207.229/api",
   timeout: 10000,
 });
 
-// Place to store token + type in memory
 let authToken = null;
-let tokenType = "Bearer"; // default
+let tokenType = "Bearer";
 
-// Function to set token after login
+// Set token after login
 export const setAuthToken = (token, type = "Bearer") => {
   authToken = token;
   tokenType = type;
+  console.log("Auth token set:", authToken);
 };
 
-// ✅ Interceptor: attach token to every request
+// Interceptor: attach token to every request
 api.interceptors.request.use(
   (config) => {
     if (authToken) {
@@ -27,7 +26,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// 👇 Export the base server URL for images/static files
 export const BASE_URL = "http://3.110.207.229";
 
 export default api;
