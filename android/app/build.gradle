@@ -8,6 +8,7 @@ def hermesEnabled = false // Set true if you want Hermes
 // React Native configuration
 react {
     autolinkLibrariesWithApp()
+    //enableCodegen = false // <--- DISABLE codegen to prevent missing JNI dirs
 }
 
 // Proguard (release)
@@ -40,6 +41,12 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            storeFile file(MYAPP_UPLOAD_STORE_FILE)
+            storePassword MYAPP_UPLOAD_STORE_PASSWORD
+            keyAlias MYAPP_UPLOAD_KEY_ALIAS
+            keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+        }
     }
 
     buildTypes {
@@ -47,8 +54,9 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources false
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }

@@ -10,19 +10,12 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 
-// Import permissions package manually
-import com.zoontek.rnpermissions.RNPermissionsPackage
-
 class MainApplication : Application(), ReactApplication {
 
     override val reactNativeHost: ReactNativeHost =
         object : DefaultReactNativeHost(this) {
             override fun getPackages(): List<ReactPackage> =
-                PackageList(this).packages.apply {
-                    // Manually add packages that cannot be auto-linked
-                    add(RNPermissionsPackage())
-                    // If you have any other manual packages, add them here
-                }
+                PackageList(this).packages // ✅ Removed manual RNPermissions package
 
             override fun getJSMainModuleName(): String = "index"
 

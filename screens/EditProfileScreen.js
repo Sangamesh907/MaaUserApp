@@ -1,3 +1,4 @@
+// screens/EditProfileScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
@@ -10,12 +11,15 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { launchImageLibrary } from 'react-native-image-picker'; 
+import { launchImageLibrary } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
+import api from '../services/api'; // centralized API
 
 const COLORS = {
   primaryBlue: '#4A90E2',
@@ -31,40 +35,99 @@ const COLORS = {
 const EditProfileScreen = () => {
   const navigation = useNavigation();
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [imageUri, setImageUri] = useState('');
+  const [loading, setLoading] = useState(false);
 
+  // Dummy image if backend doesn't provide one
+  const dummyImage = require('../assets/default-user.png');
+
+  // Load profile from AsyncStorage
   useEffect(() => {
     const loadProfile = async () => {
-      const jsonValue = await AsyncStorage.getItem('@user_profile');
-      if (jsonValue != null) {
-        const data = JSON.parse(jsonValue);
-        setName(data.name);
-        setPhone(data.phone);
-        setEmail(data.email);
-        setImageUri(data.imageUri);
+      try {
+        console.log('🔹 Loading user profile');
+        const jsonValue = await AsyncStorage.getItem('@user_profile');
+        if (jsonValue) {
+          const data = JSON.parse(jsonValue);
+          setName(data.name || '');
+          setEmail(data.email || '');
+          setImageUri(data.imageUri || '');
+          console.log('✅ Loaded profile from AsyncStorage:', data);
+        }
+      } catch (error) {
+        console.log('❌ Error loading profile:', error.message);
       }
     };
     loadProfile();
   }, []);
 
+  // Pick image from gallery
   const pickImage = async () => {
-    const result = await launchImageLibrary(
-      { mediaType: 'photo', quality: 1 },
-      (response) => {
-        if (!response.didCancel && !response.errorCode) {
-          const selectedImage = response.assets[0].uri;
-          setImageUri(selectedImage);
-        }
+    await launchImageLibrary({ mediaType: 'photo', quality: 1 }, (response) => {
+      if (!response.didCancel && !response.errorCode && response.assets?.length) {
+        const selectedImage = response.assets[0].uri;
+        setImageUri(selectedImage);
+        console.log('📸 Selected new profile image:', selectedImage);
       }
-    );
+    });
   };
 
+  // Update profile
   const handleUpdate = async () => {
-    const profile = { name, phone, email, imageUri };
-    await AsyncStorage.setItem('@user_profile', JSON.stringify(profile));
-    navigation.goBack();
+    console.log('🔹 Update button pressed');
+    console.log('Current name:', name);
+    console.log('Current email:', email);
+
+    if (!name.trim() && !email.trim()) {
+      console.log('❌ No name or email entered');
+      Alert.alert('Error', 'Please enter name or email to update.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const formData = new FormData();
+      if (name) {
+        formData.append('name', name);
+        console.log('Appending name to FormData:', name);
+      }
+      if (email) {
+        formData.append('email', email);
+        console.log('Appending email to FormData:', email);
+      }
+
+      // Add dummy image file to match backend form structure
+      const finalImageUri = imageUri || Image.resolveAssetSource(dummyImage).uri;
+      formData.append('file', {
+        uri: finalImageUri,
+        type: 'image/jpeg',
+        name: 'dummy.jpg',
+      });
+      console.log('Appending image to FormData:', finalImageUri);
+
+      console.log('📤 Sending request to /user/profile/update...');
+      const response = await api.post('/user/profile/update', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      console.log('✅ Profile update response:', response.data);
+
+      // Save updated profile locally
+      const updatedProfile = { name, email, imageUri: finalImageUri };
+      await AsyncStorage.setItem('@user_profile', JSON.stringify(updatedProfile));
+      console.log('💾 Saved updated profile to AsyncStorage');
+
+      Alert.alert('Success', 'Profile updated successfully!');
+      navigation.goBack();
+    } catch (error) {
+      console.log('❌ Profile update error:', error.response || error.message);
+      Alert.alert('Error', 'Failed to update profile. Try again.');
+    } finally {
+      setLoading(false);
+      console.log('🔹 Update process finished');
+    }
   };
 
   return (
@@ -72,8 +135,8 @@ const EditProfileScreen = () => {
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.lightGray} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}>
-
+        style={styles.container}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -87,7 +150,7 @@ const EditProfileScreen = () => {
           {/* Profile Image */}
           <View style={styles.profilePicSection}>
             <Image
-              source={imageUri ? { uri: imageUri } : require('../assets/default-user.png')}
+              source={imageUri ? { uri: imageUri } : dummyImage}
               style={styles.profileImage}
             />
             <TouchableOpacity style={styles.editPhotoButton} onPress={pickImage}>
@@ -107,16 +170,6 @@ const EditProfileScreen = () => {
               />
             </View>
             <View style={styles.inputContainer}>
-              <SimpleLineIcons name="phone" size={20} color={COLORS.gray} />
-              <TextInput
-                style={styles.input}
-                placeholder="Phone"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-              />
-            </View>
-            <View style={styles.inputContainer}>
               <SimpleLineIcons name="envelope" size={20} color={COLORS.gray} />
               <TextInput
                 style={styles.input}
@@ -132,8 +185,16 @@ const EditProfileScreen = () => {
 
         {/* Update Button */}
         <View style={styles.buttonWrapper}>
-          <TouchableOpacity style={styles.updateButton} onPress={handleUpdate}>
-            <Text style={styles.updateButtonText}>Update Profile</Text>
+          <TouchableOpacity
+            style={[styles.updateButton, loading && { opacity: 0.7 }]}
+            onPress={handleUpdate}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={styles.updateButtonText}>Update Profile</Text>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

@@ -1,210 +1,204 @@
-import React, { useState, useContext } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   ScrollView,
   Image,
-  Modal,
+  TextInput,
+  ActivityIndicator,
+  useColorScheme,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import { CartContext } from "../context/CartContext";
 import { AddressContext } from "../context/AddressContext";
-import { BASE_URL } from "../services/api";
+import api, { BASE_URL } from "../services/api"; // ✅ make sure api.js handles BASE_URL and token
 
 const CartItemsScreen = ({ navigation }) => {
-  const { cartItems, increaseItem, decreaseItem } = useContext(CartContext);
   const { selectedAddress } = useContext(AddressContext);
+  const scheme = useColorScheme();
+  const dark = scheme === "dark";
 
-  const [promoCode, setPromoCode] = useState("");
-  const [instructions, setInstructions] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-
-  const promoDiscount = promoCode.toUpperCase() === "NEW50" ? 75 : 0;
-  const deliveryCharges = 25;
-  const tax = 25;
-
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
-    0
-  );
-  const total = subtotal - promoDiscount + deliveryCharges + tax;
-
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return "https://i.imgur.com/0y8Ftya.jpg";
-    if (imagePath.startsWith("http")) return imagePath;
-    return `${BASE_URL}${imagePath}`;
+  const Colors = {
+    bg: dark ? "#000" : "#fff",
+    card: dark ? "#111" : "#fff",
+    text: dark ? "#fff" : "#000",
+    subText: dark ? "#bbb" : "#555",
+    icon: dark ? "#fff" : "#000",
+    green: "#2ecc71",
   };
 
-  const getItemName = (item) => item.food_name || item.name || item.title || "Unnamed Item";
+  const [cartData, setCartData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [promoCode, setPromoCode] = useState("");
+  const [instructions, setInstructions] = useState("");
+
+  // Fetch cart data from backend
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        const response = await api.get("/cart/me");
+        if (response.data.status === "success") {
+          setCartData(response.data.cart);
+        }
+      } catch (err) {
+        console.error("Error fetching cart:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCart();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={[styles.loaderContainer, { backgroundColor: Colors.bg }]}>
+        <ActivityIndicator size="large" color={Colors.green} />
+        <Text style={{ color: Colors.text, marginTop: 10 }}>Loading Cart...</Text>
+      </View>
+    );
+  }
+
+  if (!cartData || !cartData.items.length) {
+    return (
+      <View style={[styles.emptyContainer, { backgroundColor: Colors.bg }]}>
+        <Icon name="cart-outline" size={80} color={Colors.subText} />
+        <Text style={{ color: Colors.subText, marginTop: 10, fontSize: 16 }}>
+          Your cart is empty.
+        </Text>
+      </View>
+    );
+  }
+
+  const { items, billing_summary } = cartData;
+  const subtotal = billing_summary?.subtotal ?? 0;
+  const platform_fee = billing_summary?.platform_fee ?? 0;
+  const gst = billing_summary?.gst ?? 0;
+  const delivery_fee = billing_summary?.delivery_fee ?? 0;
+  const grand_total = billing_summary?.grand_total ?? 0;
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: Colors.bg }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="arrow-back" size={24} color="#000" />
+            <Icon name="arrow-back" size={24} color={Colors.icon} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Cart</Text>
+          <Text style={[styles.headerTitle, { color: Colors.text }]}>My Cart</Text>
         </View>
-        <Text style={styles.itemCount}>{cartItems.length} Items</Text>
+        <Text style={[styles.itemCount]}> {items.length} Items</Text>
       </View>
 
-      {/* Address Box */}
+      {/* Address */}
       <TouchableOpacity
-        style={styles.addressBox}
+        style={[styles.addressBox, { backgroundColor: dark ? "#0f4020" : "#f3fef5" }]}
         onPress={() => navigation.navigate("AddressList")}
       >
-        <Icon name="location-outline" size={22} color="#2ecc71" />
+        <Icon name="location-outline" size={22} color={Colors.green} />
         <View style={{ flex: 1, marginLeft: 10 }}>
           {selectedAddress ? (
             <>
-              <Text style={styles.deliverTo}>Deliver to:</Text>
-              <Text style={styles.addressText}>
-                {selectedAddress.label || "Home"},{" "}
-                {selectedAddress.flat_no || ""} {selectedAddress.landmark || ""},{" "}
-                {selectedAddress.area || ""}
+              <Text style={[styles.deliverTo, { color: Colors.text }]}>Deliver to:</Text>
+              <Text style={[styles.addressText, { color: Colors.subText }]}>
+                {selectedAddress.label} {selectedAddress.flat_no},{" "}
+                {selectedAddress.landmark}, {selectedAddress.area}
               </Text>
             </>
           ) : (
-            <Text style={styles.addressText}>📍 No Address Selected</Text>
+            <Text style={[styles.addressText, { color: Colors.subText }]}>
+              No Address Selected
+            </Text>
           )}
         </View>
-        <Text style={styles.changeText}>{selectedAddress ? "Change" : "Add"}</Text>
+        <Text style={[styles.changeText]}>
+          {selectedAddress ? "Change" : "Add"}
+        </Text>
       </TouchableOpacity>
 
       {/* Cart Items */}
-      {cartItems.map((item) => (
-        <View key={item.food_id || item.id} style={styles.itemCard}>
-          <View style={styles.chefRow}>
-            <Image source={{ uri: getImageUrl(item.image) }} style={styles.chefImage} />
-            <View style={{ marginLeft: 10 }}>
-              <Text style={styles.chefText}>{item.chef || "Chef"}</Text>
-              <Text style={styles.locationText}>{item.location || "Location unavailable"}</Text>
+      {items.map((item, index) => (
+        <View key={index} style={[styles.itemCard, { backgroundColor: Colors.card }]}>
+          <Image
+            source={{
+              uri: `${BASE_URL}${item.photo_url}`,
+            }}
+            style={styles.foodImage}
+          />
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={[styles.itemName, { color: Colors.text }]}>{item.food_name}</Text>
+            {item.chef_details && (
+              <Text style={[styles.chefSmallText, { color: Colors.subText }]}>
+                👨‍🍳 {item.chef_details.name} • {item.chef_details.native_place}
+              </Text>
+            )}
+
+            <View style={styles.itemBottomRow}>
+              <Text style={[styles.quantityText, { color: Colors.text }]}>
+                Qty: {item.quantity}
+              </Text>
+              <Text style={[styles.price, { color: Colors.text }]}>
+                ₹{item.price * item.quantity}
+              </Text>
             </View>
           </View>
-
-          <View style={styles.itemRow}>
-            <Text style={styles.itemName}>{getItemName(item)}</Text>
-            <View style={styles.quantityRow}>
-              <TouchableOpacity onPress={() => decreaseItem(item.food_id)}>
-                <Icon name="remove-circle-outline" size={25} color="#333" />
-              </TouchableOpacity>
-              <Text style={styles.quantityText}>{item.quantity}</Text>
-              <TouchableOpacity onPress={() => increaseItem(item.food_id)}>
-                <Icon name="add-circle-outline" size={25} color="#333" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.price}>₹{item.price * item.quantity}</Text>
-          </View>
-
-          {item.subscription && (
-            <TouchableOpacity
-              style={styles.subscriptionBox}
-              onPress={() => setShowSubscriptionModal(true)}
-            >
-              <Text style={styles.subscriptionText}>{item.subscription}</Text>
-              <Text style={styles.subscriptionPrice}>{item.price}/item</Text>
-            </TouchableOpacity>
-          )}
         </View>
       ))}
 
-      {/* Subscription Modal */}
-      <Modal
-        visible={showSubscriptionModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowSubscriptionModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPressOut={() => setShowSubscriptionModal(false)}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Choose a Subscription Plan</Text>
-            {["Monthly Plan | 30 Days", "Weekly Plan | 7 Days"].map((plan, i) => (
-              <TouchableOpacity
-                key={i}
-                style={styles.planBox}
-                onPress={() => {
-                  setSelectedPlan(plan);
-                  setShowSubscriptionModal(false);
-                }}
-              >
-                <Text style={styles.planTitle}>{plan}</Text>
-                <Text style={styles.planPrice}>{i === 0 ? "₹60/Meal" : "₹80/Meal"}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-      {selectedPlan && <Text style={styles.selectedPlan}>✅ {selectedPlan} selected</Text>}
-
       {/* Instructions */}
-      <View style={styles.inputRow}>
-        <Icon name="create-outline" size={20} color="#999" style={{ marginLeft: 10 }} />
+      <View style={[styles.inputRow, { borderColor: Colors.subText }]}>
+        <Icon name="create-outline" size={20} color={Colors.subText} style={{ marginLeft: 10 }} />
         <TextInput
           placeholder="Any Instructions"
-          placeholderTextColor="#999"
+          placeholderTextColor={Colors.subText}
           value={instructions}
           onChangeText={setInstructions}
-          style={styles.inputField}
+          style={[styles.inputField, { color: Colors.text }]}
         />
       </View>
 
-      {/* Promo Code */}
-      <View style={styles.promoRow}>
-        <View style={styles.promoInputWrapper}>
-          <Icon name="pricetag-outline" size={20} color="#999" style={{ marginLeft: 10 }} />
-          <TextInput
-            value={promoCode}
-            onChangeText={setPromoCode}
-            placeholder="Promocode"
-            placeholderTextColor="#999"
-            style={styles.promoInput}
-          />
-        </View>
-        <TouchableOpacity style={styles.applyButton}>
-          <Text style={styles.applyText}>Apply</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Summary */}
-      <View style={styles.summary}>
+      <View style={[styles.summary, { backgroundColor: dark ? "#111" : "#f8f8f8" }]}>
         <View style={styles.summaryRow}>
-          <Text>Subtotal</Text>
-          <Text>₹{subtotal}</Text>
+          <Text style={{ color: Colors.text }}>Subtotal</Text>
+          <Text style={{ color: Colors.text }}>₹{subtotal}</Text>
         </View>
-        {promoDiscount > 0 && (
-          <View style={styles.summaryRow}>
-            <Text style={styles.greenText}>Promo ({promoCode.toUpperCase()})</Text>
-            <Text style={styles.greenText}>-₹{promoDiscount}</Text>
-          </View>
-        )}
+
         <View style={styles.summaryRow}>
-          <Text>Delivery Charges</Text>
-          <Text>₹{deliveryCharges}</Text>
+          <Text style={{ color: Colors.text }}>Platform Fee</Text>
+          <Text style={{ color: Colors.text }}>₹{platform_fee}</Text>
         </View>
+
         <View style={styles.summaryRow}>
-          <Text>Tax</Text>
-          <Text>₹{tax}</Text>
+          <Text style={{ color: Colors.text }}>GST</Text>
+          <Text style={{ color: Colors.text }}>₹{gst}</Text>
         </View>
+
+        <View style={styles.summaryRow}>
+          <Text style={{ color: Colors.text }}>Delivery Fee</Text>
+          <Text style={{ color: Colors.text }}>₹{delivery_fee}</Text>
+        </View>
+
         <View style={styles.totalRow}>
-          <Text style={styles.totalText}>Total</Text>
-          <Text style={styles.totalText}>₹{total}</Text>
+          <Text style={[styles.totalText, { color: Colors.text }]}>Total</Text>
+          <Text style={[styles.totalText, { color: Colors.text }]}>₹{grand_total}</Text>
         </View>
-        {promoDiscount > 0 && <Text style={styles.savingsText}>🎉 You saved ₹{promoDiscount}!</Text>}
       </View>
 
-      {/* Pay Button */}
-      <TouchableOpacity style={styles.payButton} onPress={() => navigation.navigate("Payment")}>
-        <Text style={styles.payText}>Pay ₹{total}</Text>
+      <TouchableOpacity
+        style={[styles.payButton]}
+        onPress={() =>
+  navigation.navigate("Payment", {
+    subtotal,
+    gst,
+    delivery_fee,
+    platform_fee,
+    totalAmount: grand_total,
+  })
+}
+
+      >
+        <Text style={styles.payText}>Pay ₹{grand_total}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -212,51 +206,90 @@ const CartItemsScreen = ({ navigation }) => {
 
 export default CartItemsScreen;
 
-
-// Styles (merged & polished)
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 15 },
+  container: { flex: 1 },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 15,
+    alignItems: "center",
+  },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  headerTitle: { fontSize: 20, fontWeight: "bold" },
+  headerTitle: { fontSize: 20, fontWeight: "700" },
   itemCount: { color: "#e74c3c", fontWeight: "bold" },
-  itemCard: { backgroundColor: "#fff", padding: 15, marginHorizontal: 15, marginVertical: 8, borderRadius: 12, elevation: 2 },
-  chefRow: { flexDirection: "row", alignItems: "center" },
-  chefImage: { width: 45, height: 45, borderRadius: 25, backgroundColor: "#eee" },
-  chefText: { fontWeight: "600", fontSize: 14 },
-  locationText: { color: "#777", fontSize: 12 },
-  itemRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10 },
+  addressBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    margin: 15,
+    padding: 15,
+    borderRadius: 10,
+  },
+  deliverTo: { fontWeight: "700", fontSize: 14 },
+  addressText: { fontSize: 13, marginTop: 3 },
+  changeText: { color: "#27ae60", fontWeight: "600" },
+  itemCard: {
+    flexDirection: "row",
+    padding: 12,
+    marginHorizontal: 15,
+    marginVertical: 6,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  foodImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+  },
   itemName: { fontSize: 16, fontWeight: "600" },
-  quantityRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  chefSmallText: { fontSize: 12 },
+  itemBottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+    alignItems: "center",
+  },
   quantityText: { fontSize: 16, fontWeight: "600" },
   price: { fontSize: 16, fontWeight: "bold" },
-  subscriptionBox: { marginTop: 8 },
-  subscriptionText: { color: "#3498db", fontWeight: "600" },
-  subscriptionPrice: { color: "#555", fontSize: 12 },
-  summary: { marginHorizontal: 15, marginTop: 15, padding: 15, backgroundColor: "#f8f8f8", borderRadius: 10 },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", marginVertical: 3 },
-  greenText: { color: "green" },
-  totalRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 5 },
-  totalText: { fontWeight: "bold", fontSize: 18 },
-  savingsText: { color: "green", textAlign: "right", marginTop: 5 },
-  inputRow: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#ddd", marginHorizontal: 15, borderRadius: 10, marginTop: 15 },
-  inputField: { flex: 1, padding: 10, color: "#000" },
-  promoRow: { flexDirection: "row", marginHorizontal: 15, marginTop: 10, alignItems: "center", gap: 10 },
-  promoInputWrapper: { flex: 1, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#ddd", borderRadius: 10 },
-  promoInput: { flex: 1, padding: 10, color: "#000" },
-  applyButton: { backgroundColor: "#3498db", paddingHorizontal: 15, paddingVertical: 10, borderRadius: 8 },
-  applyText: { color: "#fff", fontWeight: "600" },
-  addressBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#f3fef5", margin: 15, padding: 15, borderRadius: 10 },
-  deliverTo: { fontWeight: "600" },
-  addressText: { fontSize: 13, color: "#555" },
-  changeText: { color: "#27ae60", fontWeight: "600" },
-  payButton: { backgroundColor: "#3498db", marginHorizontal: 15, padding: 15, borderRadius: 12, alignItems: "center", marginBottom: 20 },
-  payText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.3)" },
-  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
-  modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 15, color: "#333" },
-  planBox: { padding: 15, backgroundColor: "#f5f5f5", marginBottom: 10, borderRadius: 10 },
-  planTitle: { fontSize: 16, fontWeight: "600" },
-  planPrice: { color: "#888", marginTop: 4 },
-  selectedPlan: { paddingHorizontal: 20, color: "green", marginBottom: 10 },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    margin: 15,
+    borderRadius: 10,
+  },
+  inputField: { flex: 1, padding: 10 },
+  summary: {
+    margin: 15,
+    padding: 15,
+    borderRadius: 10,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 4,
+  },
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 5,
+  },
+  totalText: { fontSize: 18, fontWeight: "700" },
+  payButton: {
+    backgroundColor: "#3498db",
+    margin: 15,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  payText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });

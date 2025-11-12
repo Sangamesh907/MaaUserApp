@@ -1,5 +1,5 @@
 // screens/AccountScreen.js
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import {
   StyleSheet,
   View,
@@ -10,14 +10,17 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import Icon from "react-native-vector-icons/Feather";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import api, { BASE_URL } from "../services/api"; // ✅ centralized API
+import { AuthContext } from "../context/AuthContext";
 
 const COLORS = {
   primary: "#00A99D",
@@ -31,43 +34,55 @@ const COLORS = {
 
 const AccountScreen = () => {
   const navigation = useNavigation();
+  const { logout } = useContext(AuthContext);
+
   const [profile, setProfile] = useState({
-    name: "Jane Johnson",
-    email: "jane@gmail.com",
-    phone: "0123456789",
+    name: "",
+    email: "",
+    phone: "",
     imageUri: "",
   });
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchProfile = async () => {
+    try {
+      if (!refreshing) setLoading(true);
+      const response = await api.get("/userme");
+      console.log("📤 GET /userme response:", response.data);
+
+      if (response.status === 200 && response.data) {
+        const data = response.data;
+        setProfile({
+          name: data.name || "",
+          email: (data.email || "").replace(/\s+/g, ""),
+          phone: data.phone_number || "",
+          imageUri: data.photo_url ? `${BASE_URL}${data.photo_url}` : "",
+        });
+      }
+    } catch (error) {
+      console.log("❌ GET /userme error:", error.response || error.message);
+      Alert.alert("Error", "Failed to fetch profile. Try again later.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
-      const loadProfile = async () => {
-        const jsonValue = await AsyncStorage.getItem("@user_profile");
-        if (jsonValue != null) {
-          const data = JSON.parse(jsonValue);
-          setProfile({
-            name: data.name || "",
-            email: data.email || "",
-            phone: data.phone || "",
-            imageUri: data.imageUri || "",
-          });
-        }
-      };
-      loadProfile();
+      fetchProfile();
     }, [])
   );
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Logout",
         style: "destructive",
         onPress: async () => {
-          await AsyncStorage.removeItem("@user_profile");
-          navigation.reset({
-            index: 0,
-            routes: [{ name: "Login" }],
-          });
+          await logout();
         },
       },
     ]);
@@ -76,13 +91,13 @@ const AccountScreen = () => {
   const menuItems = [
     {
       icon: <MaterialIcons name="leaderboard" size={24} color={COLORS.primary} />,
-      text: "Order history",
+      text: "Order History",
       onPress: () => navigation.navigate("OrderHistory"),
     },
     {
       icon: <Ionicons name="location-sharp" size={24} color={COLORS.primary} />,
       text: "Addresses",
-      onPress: () => navigation.navigate("AddAddress"), // ✅ Navigate to AddressScreen
+      onPress: () => navigation.navigate("AddAddress"),
     },
     {
       icon: (
@@ -115,18 +130,26 @@ const AccountScreen = () => {
     },
   ];
 
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.lightGray} />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchProfile(); }} />}
+      >
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <Image
-            source={
-              profile.imageUri
-                ? { uri: profile.imageUri }
-                : require("../assets/default-user.png")
-            }
+            source={profile.imageUri ? { uri: profile.imageUri } : require("../assets/default-user.png")}
             style={styles.profileImage}
           />
           <View style={styles.profileInfo}>
@@ -147,10 +170,7 @@ const AccountScreen = () => {
         <View style={styles.menuSection}>
           {menuItems.map((item, index) => (
             <TouchableOpacity key={index} style={styles.menuItem} onPress={item.onPress}>
-              <View style={styles.menuItemContent}>
-                {item.icon}
-                <Text style={styles.menuItemText}>{item.text}</Text>
-              </View>
+              <View style={styles.menuItemContent}>{item.icon}<Text style={styles.menuItemText}>{item.text}</Text></View>
               <Icon name="chevron-right" size={22} color={COLORS.gray} />
             </TouchableOpacity>
           ))}

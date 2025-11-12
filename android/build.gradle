@@ -6,7 +6,7 @@ buildscript {
         compileSdkVersion = 35
         targetSdkVersion = 35
         ndkVersion = "27.1.12297006"
-        kotlinVersion = "2.1.20"
+        kotlinVersion = "2.1.20" // ✅ matches your kotlin plugin
     }
 
     repositories {
@@ -25,6 +25,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven { url "https://www.jitpack.io" } // sometimes needed for RN dependencies
     }
 
     configurations.all {
@@ -36,4 +37,5 @@ allprojects {
     }
 }
 
+// Apply React Native root project plugin
 apply plugin: "com.facebook.react.rootproject"

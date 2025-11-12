@@ -19,10 +19,10 @@ export default function LoginScreen({ navigation }) {
 
   const { login, authData, loading: authLoading } = useContext(AuthContext);
 
-  // ✅ Redirect to Main screen if already logged in
+  // Redirect to Main screen if already logged in
   useEffect(() => {
     if (!authLoading && authData?.token) {
-      navigation.replace("Main"); // replace prevents back to login
+      navigation.replace("Main"); // prevent back to login
     }
   }, [authData, authLoading]);
 
@@ -64,9 +64,9 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  // ✅ Show spinner while AuthProvider is restoring token
+  // Show spinner while AuthProvider is restoring token
   if (authLoading) {
-    return <ActivityIndicator size="large" style={{ flex: 1 }} />;
+    return <ActivityIndicator size="large" style={{ flex: 1 }} color="#007bff" />;
   }
 
   return (
@@ -84,6 +84,8 @@ export default function LoginScreen({ navigation }) {
           maxLength={10}
           value={mobile}
           onChangeText={setMobile}
+          selectionColor="#007bff"
+          cursorColor="#007bff"
         />
 
         <TouchableOpacity
@@ -133,6 +135,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     paddingVertical: 5,
+    color: "#000", // ✅ ensure typed numbers are visible
   },
   sendBtn: { paddingVertical: 12, borderRadius: 25, alignItems: "center" },
   sendBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },

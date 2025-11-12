@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React from 'react';
+import React, { useContext } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -30,15 +30,63 @@ import OrderDetailScreen from './screens/OrderDetailScreen';
 import OrderTrackingScreen from './screens/OrderTrackingScreen';
 import OffersScreen from './screens/OffersScreen';
 import AddAddressScreen from './screens/AddAddressScreen';
-import AddressListScreen from './screens/AddressListScreen'; // ✅ Import AddressListScreen
+import AddressListScreen from './screens/AddressListScreen';
 
 // Context
 import { CartProvider } from './context/CartContext';
 import { LocationProvider } from './context/LocationContext';
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, AuthContext } from "./context/AuthContext";
 import { AddressProvider } from "./context/AddressContext";
 
 const Stack = createNativeStackNavigator();
+
+const AppNav = () => {
+  const { isLoggedIn, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return <SplashScreen />; // optional splash while checking token
+  }
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!isLoggedIn ? (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="OTP" component={OTPScreen} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="ExploreFoodStyles" component={ExploreFoodStylesScreen} />
+            <Stack.Screen name="ExploreChefs" component={ExploreChefsScreen} />
+            <Stack.Screen name="ExploreCuisines" component={ExploreCuisinesScreen} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+            <Stack.Screen name="ChefOffers" component={ChefOffersScreen} />
+            <Stack.Screen name="Payment" component={PaymentScreen} />
+            <Stack.Screen name="AddCard" component={AddCardScreen} />
+            <Stack.Screen name="Food" component={FoodScreen} />
+            <Stack.Screen name="RestaurantLunch" component={RestaurantScreenLunch} />
+            <Stack.Screen name="FAQ" component={FaqScreen} />
+            <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+            <Stack.Screen name="CustomerSupport" component={CustomerSupportScreen} />
+            <Stack.Screen name="ChefProfile" component={ChefProfileScreen} />
+            <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
+            <Stack.Screen name="OrderDelivered" component={OrderDeliveredScreen}/>
+            <Stack.Screen name="Reviews" component={ReviewsScreen} />
+            <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+            <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+            <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
+            <Stack.Screen name="Offers" component={OffersScreen} />
+            <Stack.Screen name="AddAddress" component={AddAddressScreen} />
+            <Stack.Screen name="AddressList" component={AddressListScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
 
 export default function App() {
   return (
@@ -46,38 +94,7 @@ export default function App() {
       <CartProvider>
         <LocationProvider>
           <AddressProvider>
-            <NavigationContainer>
-             <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
-  <Stack.Screen name="Splash" component={SplashScreen} />
-  <Stack.Screen name="Login" component={LoginScreen} />
-  <Stack.Screen name="OTP" component={OTPScreen} />
-  <Stack.Screen name="Main" component={MainTabs} />
-  <Stack.Screen name="ExploreFoodStyles" component={ExploreFoodStylesScreen} />
-  <Stack.Screen name="ExploreChefs" component={ExploreChefsScreen} />
-  <Stack.Screen name="ExploreCuisines" component={ExploreCuisinesScreen} />
-  <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-  <Stack.Screen name="ChefOffers" component={ChefOffersScreen} />
-  <Stack.Screen name="Payment" component={PaymentScreen} />
-  <Stack.Screen name="AddCard" component={AddCardScreen} />
-  <Stack.Screen name="Food" component={FoodScreen} />
-  <Stack.Screen name="RestaurantLunch" component={RestaurantScreenLunch} />
-  <Stack.Screen name="FAQ" component={FaqScreen} />
-  <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
-  <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-  <Stack.Screen name="CustomerSupport" component={CustomerSupportScreen} />
-  <Stack.Screen name="ChefProfile" component={ChefProfileScreen} />
-  <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
-  <Stack.Screen name="OrderDelivered" component={OrderDeliveredScreen}/>
-  <Stack.Screen name="Reviews" component={ReviewsScreen} />
-  <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
-  <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
-  <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
-  <Stack.Screen name="Offers" component={OffersScreen} />
-  <Stack.Screen name="AddAddress" component={AddAddressScreen} />
-  <Stack.Screen name="AddressList" component={AddressListScreen} />
-</Stack.Navigator>
-
-            </NavigationContainer>
+            <AppNav />
           </AddressProvider>
         </LocationProvider>
       </CartProvider>
